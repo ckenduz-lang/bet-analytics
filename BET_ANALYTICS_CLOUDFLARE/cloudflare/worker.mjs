@@ -1,11 +1,10 @@
-import { handler as football } from '../netlify/functions/football.mjs';
-import { handler as pronosoft } from '../netlify/functions/pronosoft-list.mjs';
+import football from '../netlify/functions/football.mjs';
+import pronosoft from '../netlify/functions/pronosoft-list.mjs';
 import { handler as footballData } from '../netlify/functions/football-data.mjs';
 import { handler as formHistory } from '../netlify/functions/form-history.mjs';
-import { handler as matchAnalysis } from '../netlify/functions/match-analysis.mjs';
+import matchAnalysis from '../netlify/functions/match-analysis.mjs';
 
-const routes = new Map([
-  ['/api/football', football],
+const routes = new Map([  ['/api/football', football],
   ['/api/pronosoft-list', pronosoft],
   ['/api/football-data', footballData],
   ['/api/form-history', formHistory],

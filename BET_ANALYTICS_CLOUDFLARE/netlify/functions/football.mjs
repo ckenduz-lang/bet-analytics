@@ -35,8 +35,11 @@ function parse(html){
 export default async(req)=>{
  const u=new URL(req.url), requested=u.searchParams.get('date')||new Date().toISOString().slice(0,10);
  try{
-  const r=await fetch('https://arsiv.mackolik.com/Program/Program.aspx?st=1',{headers:{'User-Agent':'Mozilla/5.0 BET-ANALYTICS'}});
-  if(!r.ok)return Response.json({error:`Maçkolik HTTP ${r.status}`},{status:502});
+  const mackolikUrl = new URL("https://arsiv.mackolik.com/Program/Program.aspx");
+mackolikUrl.searchParams.set("st", "1");
+const r = await fetch(mackolikUrl.toString(), {
+  headers: { "User-Agent": "Mozilla/5.0 BET-ANALYTICS" }
+});  if(!r.ok)return Response.json({error:`Maçkolik HTTP ${r.status}`},{status:502});
   const html=await r.text(), fixtures=parse(html);
   const pageDate=(clean(html).match(/(\d{2}\.\d{2}\.\d{4})/)||[])[1]||null;
   const iso=pageDate?pageDate.split('.').reverse().join('-'):requested;

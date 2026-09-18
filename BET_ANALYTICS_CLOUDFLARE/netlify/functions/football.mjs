@@ -5,68 +5,127 @@ function countryLeague(raw){
  const map=[['Türkiye Süper Lig','Turkey','Süper Lig'],['İngiltere Premier Lig','England','Premier League'],['İspanya LaLiga','Spain','La Liga'],['İtalya Serie A','Italy','Serie A'],['Fransa Ligue 1','France','Ligue 1'],['Almanya Bundesliga','Germany','Bundesliga'],['Norveç Eliteserien','Norway','Eliteserien'],['İsveç','Sweden','Allsvenskan'],['Finlandiya Veikkausliiga','Finland','Veikkausliiga'],['MLS','USA','MLS'],['Hollanda Eredivisie','Netherlands','Eredivisie'],['Belçika Pro Lig','Belgium','Pro League'],['İngiltere Championship','England','Championship'],['İspanya 2.Lig','Spain','LaLiga 2'],['Danimarka','Denmark','Superliga']];
  for(const [k,c,l] of map)if(raw.includes(k))return {country:c,name:l}; return {country:'',name:raw.replace(/^Image\s*/,'').trim()||'Football'}
 }
-function parse(html){
-  const rows = [...html.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)].map(x => x[0]);
-  let leagueRaw = "";
+function parse(html) {
+  const rows = [...html.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)].map(
+    (x) => x[0]
+  );
+
   const out = [];
+  let currentLeague = null;
+
+  const leaguePatterns = [
+    {
+      rx: /Hollanda\s+Eredivisie/i,
+      canonical: "Netherlands Eredivisie"
+    },
+    {
+      rx: /Türkiye\s+Süper\s+Lig/i,
+      canonical: "Turkey Süper Lig"
+    },
+    {
+      rx: /İngiltere\s+Premier\s+Lig/i,
+      canonical: "England Premier League"
+    },
+    {
+      rx: /İspanya\s+LaLiga/i,
+      canonical: "Spain LaLiga"
+    },
+    {
+      rx: /İtalya\s+Serie\s+A/i,
+      canonical: "Italy Serie A"
+    },
+    {
+      rx: /Fransa\s+Ligue\s+1/i,
+      canonical: "France Ligue 1"
+    },
+    {
+      rx: /Almanya\s+Bundesliga/i,
+      canonical: "Germany Bundesliga"
+    },
+    {
+      rx: /Norveç\s+Eliteserien/i,
+      canonical: "Norway Eliteserien"
+    },
+    {
+      rx: /Finlandiya\s+Veikkausliiga/i,
+      canonical: "Finland Veikkausliiga"
+    },
+    {
+      rx: /Danimarka\s+Superliga/i,
+      canonical: "Denmark Superliga"
+    },
+    {
+      rx: /(?:ABD|Amerika).*MLS|\bMLS\b/i,
+      canonical: "MLS"
+    },
+    {
+      rx: /Çin.*(?:Süper\s+Lig|Super\s+League)/i,
+      canonical: "China Chinese Super League"
+    },
+    {
+      rx: /(?:UEFA\s+)?Şampiyonlar\s+Ligi/i,
+      canonical: "UEFA Champions League"
+    }
+  ];
+
+  const competitionWords =
+    /(?:Lig|League|Liga|Ligue|Serie|Bundesliga|Eredivisie|Eliteserien|Veikkausliiga|Superliga|MLS|Şampiyonlar)/i;
 
   for (const row of rows) {
     const text = clean(row);
     if (!text) continue;
 
-    // Détection stricte des en-têtes de championnats Maçkolik
+    const cells = [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map(
+      (x) => clean(x[1])
+    );
 
-// Tout nouvel en-tête de compétition coupe l'héritage du championnat précédent.
-// On remet d'abord le championnat courant à zéro.
-const isCompetitionHeader =
-  /(?:Lig|League|Liga|Ligue|Serie|Bundesliga|Eredivisie|Eliteserien|Veikkausliiga|Superliga|MLS|Şampiyonlar)/i.test(text) &&
-  !/\d{1,2}:\d{2}/.test(text);
+    const hasTime = cells.some((x) =>
+      /^\d{1,2}:\d{2}$/.test(x)
+    );
 
-if (isCompetitionHeader) {
-  leagueRaw = "";
-   const leaguePatterns = [
-  ["Hollanda Eredivisie", /Hollanda\s+Eredivisie/i],
-  ["Türkiye Süper Lig", /(?:Türkiye|Turkiye)\s+Süper\s+Lig/i],
-  ["İngiltere Premier Lig", /(?:İngiltere|Ingiltere)\s+Premier\s+Lig/i],
-  ["İspanya LaLiga", /(?:İspanya|Ispanya)\s+LaLiga/i],
-  ["İtalya Serie A", /(?:İtalya|Italya)\s+Serie\s+A/i],
-  ["Fransa Ligue 1", /Fransa\s+Ligue\s+1/i],
-  ["Almanya Bundesliga", /Almanya\s+Bundesliga/i],
-  ["Norveç Eliteserien", /(?:Norveç|Norvec)\s+Eliteserien/i],
-  ["Finlandiya Veikkausliiga", /Finlandiya\s+Veikkausliiga/i],
-  ["Danimarka Superliga", /Danimarka\s+Superliga/i],
-  ["ABD MLS", /\bABD\s+MLS\b/i],
-  ["Çin Süper Lig", /(?:Çin|Cin)\s+Süper\s+Lig/i],
-  ["UEFA Şampiyonlar Ligi", /(?:UEFA\s+)?Şampiyonlar\s+Ligi/i]
-];
+    /*
+     * Une ligne sans heure contenant le nom d'une compétition
+     * est considérée comme un nouvel en-tête.
+     *
+     * On remet toujours currentLeague à null avant de chercher
+     * une compétition autorisée. Cela empêche par exemple les
+     * compétitions suivantes d'hériter par erreur de MLS.
+     */
+    if (!hasTime && competitionWords.test(text)) {
+      currentLeague = null;
 
-const detectedLeague = leaguePatterns.find(([, rx]) => rx.test(text));
+      const detected = leaguePatterns.find((item) =>
+        item.rx.test(text)
+      );
 
-if (detectedLeague) {
-  leagueRaw = detectedLeague[0];
-  continue;
-}
-    if (!leagueRaw) continue;
+      if (detected) {
+        currentLeague = canonicalCompetition(
+          detected.canonical
+        );
+      }
 
-    const canon = canonicalCompetition(leagueRaw);
-    if (!canon) continue;
+      continue;
+    }
 
-    const cells = [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
-      .map(x => clean(x[1]));
-
+    if (!currentLeague) continue;
     if (!cells.length) continue;
 
-    const timeIndex = cells.findIndex(x => /^\d{1,2}:\d{2}$/.test(x));
+    const timeIndex = cells.findIndex((x) =>
+      /^\d{1,2}:\d{2}$/.test(x)
+    );
+
     if (timeIndex < 0) continue;
 
-    const matchIndex = cells.findIndex(x =>
-      /\s+-\s+/.test(x) &&
-      !/^\d/.test(x)
+    const matchIndex = cells.findIndex(
+      (x) =>
+        /\s+-\s+/.test(x) &&
+        !/^\d/.test(x)
     );
 
     if (matchIndex < 0) continue;
 
     const teams = cells[matchIndex].split(/\s+-\s+/);
+
     if (teams.length !== 2) continue;
 
     const home = clean(teams[0]);
@@ -77,9 +136,9 @@ if (detectedLeague) {
     const after = cells
       .slice(matchIndex + 1)
       .map(num)
-      .filter(x => x !== null);
+      .filter((x) => x !== null);
 
-    let odds = {
+    const odds = {
       home: null,
       draw: null,
       away: null,
@@ -87,7 +146,9 @@ if (detectedLeague) {
       over25: null
     };
 
-    // Maçkolik : code, 1, X, 2, code, Under, Over...
+    /*
+     * Recherche du bloc de cotes 1-X-2.
+     */
     for (let i = 0; i + 3 < after.length; i++) {
       if (
         after[i] > 100 &&
@@ -124,21 +185,30 @@ if (detectedLeague) {
       date: null,
       time,
       status: "NS",
+
       league: {
         id: 0,
-        country: canon.country || "",
-        name: canon.name,
+        country: currentLeague.country || "",
+        name: currentLeague.name,
         flag: null
       },
-      home: { name: home, logo: null },
-      away: { name: away, logo: null },
+
+      home: {
+        name: home,
+        logo: null
+      },
+
+      away: {
+        name: away,
+        logo: null
+      },
+
       odds
     });
   }
 
-   return out;
+  return out;
 }
-
 export default async (req) => {
   const u = new URL(req.url);
   const requested =

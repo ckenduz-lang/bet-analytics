@@ -11,18 +11,34 @@ const routes = new Map([  ['/api/football', football],
   ['/api/match-analysis', matchAnalysis],
 ]);
 
-function qs(url){ return Object.fromEntries(url.searchParams.entries()); }
-async function run(handler, request, env){
-  // Existing modules read process.env. Cloudflare supplies env bindings.
+async function run(handler, request, env) {
   globalThis.process ??= { env: {} };
-  process.env = {...process.env, ...env};
-  const url=new URL(request.url);
-  const body = request.method==='GET'||request.method==='HEAD' ? null : await request.text();
-  const event={httpMethod:request.method,headers:Object.fromEntries(request.headers),queryStringParameters:qs(url),body};
-  const r=await handler(event,{});
-  return new Response(r?.body ?? '',{status:r?.statusCode ?? 200,headers:r?.headers ?? {'content-type':'application/json'}});
-}
-export default {
+  process.env = { ...(process.env || {}), ...env };
+
+  const url = new URL(request.url);
+
+  const body =
+    request.method === "GET" || request.method === "HEAD"
+      ? null
+      : await request.text();
+
+  const event = {
+    httpMethod: request.method,
+    headers: Object.fromEntries(request.headers),
+    queryStringParameters: Object.fromEntries(url.searchParams.entries()),
+    rawUrl: url.href,
+    rawQuery: url.searchParams.toString(),
+    path: url.pathname,
+    body
+  };
+
+  const r = await handler(event, {});
+
+  return new Response(r?.body ?? "", {
+    status: r?.statusCode ?? 200,
+    headers: r?.headers ?? { "content-type": "application/json" }
+  });
+}export default {
  async fetch(request,env){
    const url=new URL(request.url);
    const h=routes.get(url.pathname);

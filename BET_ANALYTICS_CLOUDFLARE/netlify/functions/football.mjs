@@ -6,33 +6,116 @@ function countryLeague(raw){
  for(const [k,c,l] of map)if(raw.includes(k))return {country:c,name:l}; return {country:'',name:raw.replace(/^Image\s*/,'').trim()||'Football'}
 }
 function parse(html){
- const rows=[...html.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)].map(x=>x[0]); let league={country:'',name:'Football'}, out=[];
+  const rows = [...html.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)].map(x => x[0]);
+  let leagueRaw = "";
+  const out = [];
 
- for(const row of rows){
-   const text=clean(row); if(!text)continue;
-   if(/Premier Lig|LaLiga|Serie A|Ligue 1|Bundesliga|Eliteserien|Veikkausliiga|Eredivisie|Pro Lig|Championship|Superliga|Allsvenskan/i.test(text) && !/\s-\s/.test(text)){league=countryLeague(text);continue}
-   if(!/\s-\s/.test(text))continue;
-   const cells=[...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map(x=>clean(x[1])).filter(Boolean);
-   const ti=cells.findIndex(x=>/^\d{1,2}:\d{2}$/.test(x));
-   const mi=cells.findIndex(x=>/\s-\s/.test(x) && !/^\d/.test(x));
-   if(mi<0)continue;
-   const [home,...rest]=cells[mi].split(/\s+-\s+/); const away=rest.join(' - ');
-   if(!home||!away)continue;
-   const canon=canonicalCompetition(`${league.country||''} ${league.name||''}`); if(!canon)continue; league={...league,name:canon.name,canonicalKey:canon.key};
-   const after=cells.slice(mi+1).map(num).filter(x=>x!==null);
-   // Maçkolik order on the public program: code, 1, X, 2, code, Under, Over, ...
-   let odds={home:null,draw:null,away:null,under25:null,over25:null};
-   for(let i=0;i<after.length-5;i++){
-     if(after[i]>100 && after[i+1]>.9&&after[i+1]<30 && after[i+2]>.9&&after[i+2]<30 && after[i+3]>.9&&after[i+3]<30){
-       odds={home:after[i+1],draw:after[i+2],away:after[i+3],under25:after[i+5]??null,over25:after[i+6]??null}; break;
-     }
-   }
-   const time=ti>=0?cells[ti]:'00:00';
-   out.push({id:`mk-${out.length}-${home}-${away}`,date:null,time,status:'NS',league:{id:0,...league,flag:null},home:{name:home,logo:null},away:{name:away,logo:null},venue:null,goals:{home:null,away:null},odds,source:'Maçkolik'});
- }
- return out;
-}
-export default async(req)=>{
+  for (const row of rows) {
+    const text = clean(row);
+    if (!text) continue;
+
+    // Les en-têtes de championnats Maçkolik
+    const leagueMatch = text.match(
+      /(Hollanda\s+Eredivisie|Türkiye\s+Süper\s+Lig|İngiltere\s+Premier\s+Lig|İspanya\s+LaLiga|İtalya\s+Serie\s+A|Fransa\s+Ligue\s+1|Almanya\s+Bundesliga|Norveç\s+Eliteserien|Finlandiya\s+Veikkausliiga|Danimarka\s+Superliga|ABD\s+MLS|Çin\s+Süper\s+Lig|Şampiyonlar\s+Ligi)/i
+    );
+
+    if (leagueMatch) {
+      leagueRaw = leagueMatch[1];
+      continue;
+    }
+
+    if (!leagueRaw) continue;
+
+    const canon = canonicalCompetition(leagueRaw);
+    if (!canon) continue;
+
+    const cells = [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      .map(x => clean(x[1]));
+
+    if (!cells.length) continue;
+
+    const timeIndex = cells.findIndex(x => /^\d{1,2}:\d{2}$/.test(x));
+    if (timeIndex < 0) continue;
+
+    const matchIndex = cells.findIndex(x =>
+      /\s+-\s+/.test(x) &&
+      !/^\d/.test(x)
+    );
+
+    if (matchIndex < 0) continue;
+
+    const teams = cells[matchIndex].split(/\s+-\s+/);
+    if (teams.length !== 2) continue;
+
+    const home = clean(teams[0]);
+    const away = clean(teams[1]);
+
+    if (!home || !away) continue;
+
+    const after = cells
+      .slice(matchIndex + 1)
+      .map(num)
+      .filter(x => x !== null);
+
+    let odds = {
+      home: null,
+      draw: null,
+      away: null,
+      under25: null,
+      over25: null
+    };
+
+    // Maçkolik : code, 1, X, 2, code, Under, Over...
+    for (let i = 0; i + 3 < after.length; i++) {
+      if (
+        after[i] > 100 &&
+        after[i + 1] >= 1 &&
+        after[i + 1] < 30 &&
+        after[i + 2] >= 1 &&
+        after[i + 2] < 30 &&
+        after[i + 3] >= 1 &&
+        after[i + 3] < 30
+      ) {
+        odds.home = after[i + 1];
+        odds.draw = after[i + 2];
+        odds.away = after[i + 3];
+
+        if (
+          after[i + 4] > 100 &&
+          after[i + 5] >= 1 &&
+          after[i + 5] < 30 &&
+          after[i + 6] >= 1 &&
+          after[i + 6] < 30
+        ) {
+          odds.under25 = after[i + 5];
+          odds.over25 = after[i + 6];
+        }
+
+        break;
+      }
+    }
+
+    const time = cells[timeIndex];
+
+    out.push({
+      id: `mk-${out.length}-${home}-${away}`,
+      date: null,
+      time,
+      status: "NS",
+      league: {
+        id: 0,
+        country: canon.country || "",
+        name: canon.name,
+        flag: null
+      },
+      home: { name: home, logo: null },
+      away: { name: away, logo: null },
+      odds
+    });
+  }
+
+  return out;
+}export default async(req)=>{
  const u=new URL(req.url), requested=u.searchParams.get('date')||new Date().toISOString().slice(0,10);
  try{
   const mackolikUrl = new URL("https://arsiv.mackolik.com/Program/Program.aspx");

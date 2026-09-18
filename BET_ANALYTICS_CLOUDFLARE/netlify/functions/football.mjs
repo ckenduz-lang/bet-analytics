@@ -15,8 +15,16 @@ function parse(html){
     if (!text) continue;
 
     // Détection stricte des en-têtes de championnats Maçkolik
-const leaguePatterns = [
-  ["Hollanda Eredivisie", /Hollanda\s+Eredivisie/i],
+
+// Tout nouvel en-tête de compétition coupe l'héritage du championnat précédent.
+// On remet d'abord le championnat courant à zéro.
+const isCompetitionHeader =
+  /(?:Lig|League|Liga|Ligue|Serie|Bundesliga|Eredivisie|Eliteserien|Veikkausliiga|Superliga|MLS|Şampiyonlar)/i.test(text) &&
+  !/\d{1,2}:\d{2}/.test(text);
+
+if (isCompetitionHeader) {
+  leagueRaw = "";
+ } const leaguePatterns = [}["Hollanda Eredivisie", /Hollanda\s+Eredivisie/i],
   ["Türkiye Süper Lig", /(?:Türkiye|Turkiye)\s+Süper\s+Lig/i],
   ["İngiltere Premier Lig", /(?:İngiltere|Ingiltere)\s+Premier\s+Lig/i],
   ["İspanya LaLiga", /(?:İspanya|Ispanya)\s+LaLiga/i],

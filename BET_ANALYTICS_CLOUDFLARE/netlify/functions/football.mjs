@@ -136,21 +136,74 @@ if (detectedLeague) {
     });
   }
 
-  return out;
-}export default async(req)=>{
- const u=new URL(req.url), requested=u.searchParams.get('date')||new Date().toISOString().slice(0,10);
- try{
-  const mackolikUrl = new URL("https://arsiv.mackolik.com/Program/Program.aspx");
-mackolikUrl.searchParams.set("st", "1");
-const r = await fetch(mackolikUrl.toString(), {
-  headers: { "User-Agent": "Mozilla/5.0 BET-ANALYTICS" }
-});  if(!r.ok)return Response.json({error:`Maçkolik HTTP ${r.status}`},{status:502});
-  const html=await r.text(), fixtures=parse(html);
-  const pageDate=(clean(html).match(/(\d{2}\.\d{2}\.\d{4})/)||[])[1]||null;
-  const iso=pageDate?pageDate.split('.').reverse().join('-'):requested;
-  for(const f of fixtures)f.date=`${iso}T${f.time}:00`;
-  return Response.json({date:iso,requestedDate:requested,results:fixtures.length,fixtures,source:'Maçkolik public program',live:true},
-    {headers:{'Cache-Control':'public, max-age=120, s-maxage=300'}});
- }catch(e){return Response.json({error:'Programme Maçkolik indisponible',details:String(e.message||e)},{status:502})}
+   return out;
+}
+
+export default async (req) => {
+  const u = new URL(req.url);
+  const requested =
+    u.searchParams.get("date") ||
+    new Date().toISOString().slice(0, 10);
+
+  try {
+    const mackolikUrl = new URL(
+      "https://arsiv.mackolik.com/Program/Program.aspx"
+    );
+    mackolikUrl.searchParams.set("st", "1");
+
+    const r = await fetch(mackolikUrl.toString(), {
+      headers: {
+        "User-Agent": "Mozilla/5.0 BET-ANALYTICS"
+      }
+    });
+
+    if (!r.ok) {
+      return Response.json(
+        { error: `Maçkolik HTTP ${r.status}` },
+        { status: 502 }
+      );
+    }
+
+    const html = await r.text();
+    const fixtures = parse(html);
+
+    const pageDate =
+      clean(html).match(/(\d{2}\.\d{2}\.\d{4})/)?.[1] || null;
+
+    const iso = pageDate
+      ? pageDate.split(".").reverse().join("-")
+      : requested;
+
+    for (const f of fixtures) {
+      f.date = `${iso}T${f.time}:00`;
+    }
+
+    return Response.json(
+      {
+        date: iso,
+        requestedDate: requested,
+        results: fixtures.length,
+        fixtures,
+        source: "Maçkolik public program",
+        live: true
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=120, s-maxage=300"
+        }
+      }
+    );
+  } catch (e) {
+    return Response.json(
+      {
+        error: "Programme Maçkolik indisponible",
+        details: String(e.message || e)
+      },
+      { status: 502 }
+    );
+  }
 };
-export const config={path:'/api/football'};
+
+export const config = {
+  path: "/api/football"
+};

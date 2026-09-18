@@ -32,8 +32,7 @@ async function run(handler, request, env) {
     body
   };
 
-  const r = await handler(event, {});
-
+  const r = await handler(request);
   return new Response(r?.body ?? "", {
     status: r?.statusCode ?? 200,
     headers: r?.headers ?? { "content-type": "application/json" }

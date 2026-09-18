@@ -24,7 +24,9 @@ const isCompetitionHeader =
 
 if (isCompetitionHeader) {
   leagueRaw = "";
- } const leaguePatterns = [}["Hollanda Eredivisie", /Hollanda\s+Eredivisie/i],
+} 
+   const leaguePatterns = [
+  [Hollanda Eredivisie", /Hollanda\s+Eredivisie/i],
   ["Türkiye Süper Lig", /(?:Türkiye|Turkiye)\s+Süper\s+Lig/i],
   ["İngiltere Premier Lig", /(?:İngiltere|Ingiltere)\s+Premier\s+Lig/i],
   ["İspanya LaLiga", /(?:İspanya|Ispanya)\s+LaLiga/i],

@@ -14,16 +14,29 @@ function parse(html){
     const text = clean(row);
     if (!text) continue;
 
-    // Les en-têtes de championnats Maçkolik
-    const leagueMatch = text.match(
-      /(Hollanda\s+Eredivisie|Türkiye\s+Süper\s+Lig|İngiltere\s+Premier\s+Lig|İspanya\s+LaLiga|İtalya\s+Serie\s+A|Fransa\s+Ligue\s+1|Almanya\s+Bundesliga|Norveç\s+Eliteserien|Finlandiya\s+Veikkausliiga|Danimarka\s+Superliga|ABD\s+MLS|Çin\s+Süper\s+Lig|Şampiyonlar\s+Ligi)/i
-    );
+    // Détection stricte des en-têtes de championnats Maçkolik
+const leaguePatterns = [
+  ["Hollanda Eredivisie", /Hollanda\s+Eredivisie/i],
+  ["Türkiye Süper Lig", /(?:Türkiye|Turkiye)\s+Süper\s+Lig/i],
+  ["İngiltere Premier Lig", /(?:İngiltere|Ingiltere)\s+Premier\s+Lig/i],
+  ["İspanya LaLiga", /(?:İspanya|Ispanya)\s+LaLiga/i],
+  ["İtalya Serie A", /(?:İtalya|Italya)\s+Serie\s+A/i],
+  ["Fransa Ligue 1", /Fransa\s+Ligue\s+1/i],
+  ["Almanya Bundesliga", /Almanya\s+Bundesliga/i],
+  ["Norveç Eliteserien", /(?:Norveç|Norvec)\s+Eliteserien/i],
+  ["Finlandiya Veikkausliiga", /Finlandiya\s+Veikkausliiga/i],
+  ["Danimarka Superliga", /Danimarka\s+Superliga/i],
+  ["ABD MLS", /\bABD\s+MLS\b/i],
+  ["Çin Süper Lig", /(?:Çin|Cin)\s+Süper\s+Lig/i],
+  ["UEFA Şampiyonlar Ligi", /(?:UEFA\s+)?Şampiyonlar\s+Ligi/i]
+];
 
-    if (leagueMatch) {
-      leagueRaw = leagueMatch[1];
-      continue;
-    }
+const detectedLeague = leaguePatterns.find(([, rx]) => rx.test(text));
 
+if (detectedLeague) {
+  leagueRaw = detectedLeague[0];
+  continue;
+}
     if (!leagueRaw) continue;
 
     const canon = canonicalCompetition(leagueRaw);

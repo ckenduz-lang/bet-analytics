@@ -1,0 +1,8 @@
+{
+  "name":"bet-analytics",
+  "version":"27.0.0",
+  "private":true,
+  "type":"module",
+  "scripts":{"build":"node scripts/build.mjs","test":"node tests/parser.test.mjs","check":"npm run test && npm run build"},
+  "devDependencies":{"wrangler":"4.136.1"}
+}

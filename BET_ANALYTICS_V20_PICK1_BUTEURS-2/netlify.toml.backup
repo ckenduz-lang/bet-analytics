@@ -1,0 +1,17 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+from="/api/football-data"
+to="/.netlify/functions/football-data"
+status=200
+
+[[redirects]]
+from="/api/form-history"
+to="/.netlify/functions/form-history"
+status=200

@@ -69,6 +69,21 @@ function model(hAll,aAll,hHome,aAway){
   likelyScores:scores.slice(0,3).map(x=>({score:`${x[0]}-${x[1]}`,probability:pc(x[2])})),
   confidence:hAll.played>=5&&aAll.played>=5?'standard':'limitée'};
 }
+
+function hashSeed(s){let h=2166136261>>>0;for(const ch of String(s)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng32(seed){let x=seed>>>0||123456789;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296}}
+function samplePoisson(lambda,rng){const L=Math.exp(-lambda);let k=0,p=1;do{k++;p*=rng()}while(p>L&&k<20);return k-1}
+function simulateMonteCarlo(lh,la,label,n=10000){
+ const rng=rng32(hashSeed(label));let h=0,d=0,a=0,o25=0,btts=0,ot=0,gh=0,ga=0;
+ for(let i=0;i<n;i++){
+   let x=samplePoisson(lh,rng),y=samplePoisson(la,rng);gh+=x;ga+=y;
+   if(x>y)h++;else if(x<y)a++;else{d++;ot++}
+   if(x+y>2)o25++;if(x>0&&y>0)btts++;
+ }
+ const pc=x=>+(100*x/n).toFixed(1);
+ return {runs:n,home:pc(h),draw:pc(d),away:pc(a),over25:pc(o25),btts:pc(btts),extraTimeProxy:pc(ot),avgGoals:{home:+(gh/n).toFixed(2),away:+(ga/n).toFixed(2)},note:'Monte Carlo déterministe basé sur les λ du modèle Poisson; ce n’est pas une source indépendante.'};
+}
+
 function extractScorers(matches,teamName){
  const counts=new Map();
  const walk=(x,team)=>{
@@ -123,6 +138,7 @@ export default async req=>{
   const h10=hr.slice(-10),a10=ar.slice(-10);
   const hAll=summary(h10,home),aAll=summary(a10,away),hHome=summary(hr.filter(m=>similar(m.team1,home)).slice(-10),home,'home'),aAway=summary(ar.filter(m=>similar(m.team2,away)).slice(-10),away,'away');
   const probabilities=model(hAll,aAll,hHome,aAway);
+  const simulation=probabilities?simulateMonteCarlo(probabilities.expectedGoals.home,probabilities.expectedGoals.away,`${home}|${away}|${date}`,10000):null;
   const h2h=all.filter(m=>(similar(m.team1,home)&&similar(m.team2,away))||(similar(m.team1,away)&&similar(m.team2,home))).slice(-10).reverse()
     .map(m=>({date:m.date,season:m._season,home:m.team1,away:m.team2,goals:{home:score(m)[0],away:score(m)[1]}}));
   const scorerMatches=(fullCurrent?.matches||[]).filter(m=>m.date<date);
@@ -132,9 +148,9 @@ export default async req=>{
    apiSportsCallsUsed:0,seasonsUsed:seasons.filter((x,i)=>datasets[i]),historyDepth:all.length,
    home:hAll,away:aAll,homeAdvanced:streakStats(h10,home),awayAdvanced:streakStats(a10,away),
    homeAtHome:hHome,awayAway:aAway,h2h,scorers,scorersAvailable:scorers.home.length>0||scorers.away.length>0,
-   probabilities,insufficient:!probabilities,
+   probabilities,simulation,insufficient:!probabilities,
    message:!probabilities?`Historique insuffisant : ${hAll.played} match(s) ${home}, ${aAll.played} match(s) ${away}.`:null,
-   method:probabilities?'Poisson BET ANALYTICS : 10 derniers matchs + splits domicile/extérieur, alimenté par jusqu’à 5 saisons d’historique.':'Aucun pourcentage inventé.'
+   method:probabilities?'Poisson BET ANALYTICS : 10 derniers matchs + splits domicile/extérieur, alimenté par jusqu’à 5 saisons d’historique. La simulation 10 000 tire des scores à partir des mêmes λ et sert de contrôle de cohérence, pas de source indépendante.':'Aucun pourcentage inventé.'
   },{headers:{'Cache-Control':'public, max-age=3600, s-maxage=21600'}});
  }catch(e){return Response.json({error:'Historique impossible à calculer',detail:String(e.message||e),apiSportsCallsUsed:0},{status:200})}
 };
